@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token }}">
+    <title>Emoji Map - Share Your Emojis!</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: Arial, sans-serif;
+            background-color: #f5f5f5;
+        }
+        
+        .header {
+            background-color: #4CAF50;
+            color: white;
+            padding: 20px;
+            text-align: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .container {
+            display: flex;
+            height: calc(100vh - 80px);
+        }
+        
+        .sidebar {
+            width: 300px;
+            background-color: white;
+            padding: 20px;
+            box-shadow: 2px 0 4px rgba(0,0,0,0.1);
+            overflow-y: auto;
+        }
+        
+        .map-container {
+            flex: 1;
+            position: relative;
+        }
+        
+        #map {
+            width: 100%;
+            height: 100%;
+        }
+        
+        .emoji-form {
+            margin-bottom: 20px;
+        }
+        
+        .emoji-form label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        
+        .emoji-form select {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+        
+        .emoji-form button {
+            width: 100%;
+            padding: 10px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        
+        .emoji-form button:hover {
+            background-color: #45a049;
+        }
+        
+        .emoji-grid {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 5px;
+            margin-bottom: 10px;
+        }
+        
+        .emoji-option {
+            font-size: 24px;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            cursor: pointer;
+            text-align: center;
+            transition: background-color 0.3s;
+        }
+        
+        .emoji-option:hover {
+            background-color: #f0f0f0;
+        }
+        
+        .emoji-option.selected {
+            background-color: #4CAF50;
+            color: white;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🗺️ Emoji Map - Share Your Emojis!</h1>
+        <p>Select an emoji and share your location with the world</p>
+        <p>In today’s world, emojis represent emotions, adding personality and tone to digital conversations. They help convey feelings quickly, making messages more relatable and less likely to be misunderstood.
+</p>
+    </div>
+
+    <div class="container">
+        <div class="sidebar">
+            <div class="emoji-form">
+                <h3>Select an Emoji</h3>
+                <div class="emoji-grid">
+                    <div class="emoji-option" data-emoji="😊">😊</div>
+                    <div class="emoji-option" data-emoji="😂">😂</div>
+                    <div class="emoji-option" data-emoji="😍">😍</div>
+                    <div class="emoji-option" data-emoji="😎">😎</div>
+                    <div class="emoji-option" data-emoji="🤔">🤔</div>
+                    <div class="emoji-option" data-emoji="😢">😢</div>
+                    <div class="emoji-option" data-emoji="😡">😡</div>
+                    <div class="emoji-option" data-emoji="🥳">🥳</div>
+                    <div class="emoji-option" data-emoji="😴">😴</div>
+                    <div class="emoji-option" data-emoji="🤗">🤗</div>
+                </div>
+                <input type="hidden" id="selected-emoji" value="😊">
+                <button type="button" onclick="submitEmoji()">Share Emoji</button>
+            </div>
+            <div id="status-message"></div>
+        </div>
+        
+        <div class="map-container">
+            <div id="map"></div>
+            <div id="loading" class="loading">Loading map and emojis...</div>
+        </div>
+    </div>
+
+<script>
+    let map;
+    let userLat, userLng;
+    let userLocationMarker;
+    let emojiMarkers = [];
+
+    
+    function initializeMap(lat, lng) {
+        map = L.map('map').setView([lat, lng], 13);
+        
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        }).addTo(map);
+
+        userLocationMarker = L.marker([lat, lng], {
+            icon: L.divIcon({
+                className: 'user-location',
+                html: '<div style="background-color: #4CAF50; color: white; border-radius: 50%; width: 20px; height: 20px; display: flex; align-items: center; justify-content: center;">👤</div>',
+                iconSize: [20, 20]
+            })
+        }).addTo(map).bindPopup('Your Location').openPopup();
+    }
+
+    function addEmojiMarker(lat, lng, emoji) {
+        const marker = L.marker([lat, lng], {
+            icon: L.divIcon({
+                className: 'emoji-marker',
+                html: `<div style="font-size: 24px;">${emoji}</div>`,
+                iconSize: [30, 30],
+                iconAnchor: [15, 15]
+            })
+        }).addTo(map).bindPopup(`<strong>${emoji}</strong>`);
+        emojiMarkers.push(marker);
+    }
+
+  
+    function fetchEmojis() {
+        fetch('/api/get-emojis/')
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    data.emojis.forEach(emojiData => {
+                        addEmojiMarker(emojiData.latitude, emojiData.longitude, emojiData.emoji);
+                    });
+                    document.getElementById('loading').style.display = 'none';
+                }
+            })
+            .catch(error => {
+                console.error("Error fetching emojis:", error);
+                document.getElementById('loading').innerHTML = 'Error loading emojis';
+            });
+    }
+
+
+    function submitEmoji() {
+        const emoji = document.getElementById('selected-emoji').value;
+        
+        if (!emoji || !userLat || !userLng) {
+            showStatus('Please select an emoji and ensure location is available', 'error');
+            return;
+        }
+
+        const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+        
+        fetch('/api/submit-emoji/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
+            },
+            body: JSON.stringify({
+                emoji: emoji,
+                latitude: userLat,
+                longitude: userLng
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                addEmojiMarker(userLat, userLng, emoji);
+                showStatus('Emoji shared successfully!', 'success');
+            } else {
+                showStatus('Error sharing emoji: ' + (data.message || 'Unknown error'), 'error');
+            }
+        })
+        .catch(error => {
+            showStatus('Error: ' + error, 'error');
+        });
+    }
+
+
+    function showStatus(message, type) {
+        const statusDiv = document.getElementById('status-message');
+        statusDiv.innerHTML = `<div style="padding: 10px; margin: 10px 0; border-radius: 4px; background-color: ${type === 'success' ? '#d4edda' : '#f8d7da'}; color: ${type === 'success' ? '#155724' : '#721c24'};">${message}</div>`;
+        setTimeout(() => statusDiv.innerHTML = '', 3000);
+    }
+
+    document.querySelectorAll('.emoji-option').forEach(option => {
+        option.addEventListener('click', function() {
+            document.querySelectorAll('.emoji-option').forEach(opt => opt.classList.remove('selected'));
+            this.classList.add('selected');
+            document.getElementById('selected-emoji').value = this.dataset.emoji;
+        });
+    });
+
+    function getUserLocation() {
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(
+                function(position) {
+                    userLat = position.coords.latitude;
+                    userLng = position.coords.longitude;
+                    initializeMap(userLat, userLng);
+                    fetchEmojis();
+                },
+                function(error) {
+                    console.error("Error getting location:", error);
+                    userLat = 40.7128;
+                    userLng = -74.0060;
+                    initializeMap(userLat, userLng);
+                    fetchEmojis();
+                }
+            );
+        } else {
+            userLat = 40.7128;
+            userLng = -74.0060;
+            initializeMap(userLat, userLng);
+            fetchEmojis();
+        }
+    }
+
+    getUserLocation();
+</script>
+
+</body>
+</html>
