@@ -7,3 +7,9 @@
 - **Submit Emoji**: Users can choose an emoji that best represents their current emotion.
 - **Geolocation**: The user's location is captured automatically and stored alongside the emoji.
 - **Interactive Map**: An interactive world map shows all emojis submitted by users around the globe.
+
+## Tech Stack
+
+- **Backend**: Django (Python), MongoDB
+- **Frontend**: HTML, CSS, JavaScript
+- **Map**: Leaflet.js
