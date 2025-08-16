@@ -13,3 +13,10 @@
 - **Backend**: Django (Python), MongoDB
 - **Frontend**: HTML, CSS, JavaScript
 - **Map**: Leaflet.js
+
+
+## Images
+![Website](map1.png)
+![zoom mape image](map2.png)
+![your location](map3.png)
+![uploading emoji emotion](map4.png)
