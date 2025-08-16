@@ -2,6 +2,8 @@
 
 **Emoji Emotion Map** is a web application where users can submit emojis to represent their current emotions, along with their geographical location. The emoji and location data are stored in MongoDB and displayed on an interactive world map. Users from all over the world can contribute their emotions, and the map will show the emojis selected by people worldwide.
 
+The purpose of this website is just to visualize the emotions and feelings of people around the globe using emojis (emoji emotion). 
+
 ## Features
 
 - **Submit Emoji**: Users can choose an emoji that best represents their current emotion.
